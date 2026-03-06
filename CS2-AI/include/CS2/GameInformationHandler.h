@@ -10,11 +10,11 @@
 #include "CS2/MemoryManager.h"
 #include "CS2/Offsets.h"
 
-// --- 1. ADD THIS STRUCT AT THE TOP ---
+
 struct ViewMatrix {
 	float matrix[16];
 };
-// -------------------------------------
+
 
 struct Movement
 {
@@ -66,13 +66,10 @@ public:
 	void set_player_shooting(bool val);
 	void set_config(Config config);
 
-	// --- 2. ADD THIS FUNCTION DECLARATION ---
-	ViewMatrix get_view_matrix();
-	// ----------------------------------------
 
-	// --- 3. ENSURE THIS VARIABLE IS HERE TOO ---
+	ViewMatrix get_view_matrix();
+
 	bool esp_enabled = false;
-	// -------------------------------------------
 
 private:
 	std::optional<PlayerInformation> get_closest_player(const GameInformation& game_info, bool only_enemy_team);

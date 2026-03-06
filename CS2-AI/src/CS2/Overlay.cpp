@@ -27,7 +27,7 @@ bool Overlay::worldToScreen(const Vec3D<float>& worldPos, Vec2D<float>& screenPo
     float x_ndc = x * invW;
     float y_ndc = y * invW;
 
-    float screenWidth = 1920.0f; // Adjusted for your 1920x1200 monitor
+    float screenWidth = 1920.0f;
     float screenHeight = 1200.0f;
 
     screenPos.x = (screenWidth / 2.0f) + (x_ndc * screenWidth / 2.0f);
@@ -45,35 +45,27 @@ void Overlay::paintEvent(QPaintEvent* event) {
     ViewMatrix currentMatrix = m_handler->get_view_matrix();
     GameInformation game_info = m_handler->get_game_information();
 
-    // Loop through every player found in game memory
     for (const auto& player : game_info.other_players) {
 
-        // 1. Skip dead players and teammates
         if (player.health <= 0) continue;
         if (player.team == game_info.controlled_player.team) continue;
 
         Vec2D<float> headScreen;
         Vec2D<float> feetScreen;
 
-        // 2. Calculate screen position for both Head and Feet
-        // This ensures the box scales exactly to the enemy's height
         bool headInView = worldToScreen(player.head_position, headScreen, currentMatrix);
         bool feetInView = worldToScreen(player.position, feetScreen, currentMatrix);
 
         if (headInView && feetInView) {
 
-            // 3. Determine the height on your screen
+
             float height = feetScreen.y - headScreen.y;
 
-            // 4. Proportions: Make the box slightly taller than the head bone 
-            // and half as wide as it is tall
             float boxHeight = height * 1.15f;
             float boxWidth = boxHeight / 2.0f;
 
             painter.setPen(QPen(Qt::red, 2));
 
-            // 5. Draw the rectangle
-            // We use static_cast<int> to stop the compiler's precision warnings
             painter.drawRect(
                 static_cast<int>(headScreen.x - (boxWidth / 2.0f)),
                 static_cast<int>(headScreen.y - (height * 0.15f)),
@@ -81,7 +73,6 @@ void Overlay::paintEvent(QPaintEvent* event) {
                 static_cast<int>(boxHeight)
             );
 
-            // 6. Draw health text next to the box
             painter.setPen(Qt::white);
             painter.drawText(
                 static_cast<int>(headScreen.x + (boxWidth / 2.0f) + 2),

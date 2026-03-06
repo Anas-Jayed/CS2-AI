@@ -1,13 +1,10 @@
 #include "UI/MainWindow.h"
-#include "CS2/GameInformationHandler.h" // Needed to access the global variable
+#include "CS2/GameInformationHandler.h"
 #include <QCheckBox>
 #include <QLayout>
 
-// --- IMPORTANT: GLOBAL ACCESS ---
-// We tell this file that 'handler' exists somewhere else (in main.cpp or global scope)
-// If your compiler complains about "handler", change this to match your global variable name.
+
 extern GameInformationhandler handler; 
-// --------------------------------
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), m_ui(new Ui::MainWindow)
 {
@@ -15,23 +12,17 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), m_ui(new Ui::Main
     m_settings_window = new SettingsWindow(this);
     auto cs2_config = m_settings_window->get_config();
 
-    // --- ADD THIS BLOCK ---
-    // Initialize the Global Handler so the Overlay can use it
+
     handler.init(cs2_config);
     handler.loadOffsets();
-    // ----------------------
 
-    // --- 1. DYNAMIC ESP CHECKBOX ---
     QCheckBox* esp_box = new QCheckBox("ESP", this);
     esp_box->setObjectName("checkBox_esp");
     
-    // Add it next to Aimbot
     if (m_ui->checkBox_aimbot && m_ui->checkBox_aimbot->parentWidget()->layout()) {
         m_ui->checkBox_aimbot->parentWidget()->layout()->addWidget(esp_box);
     }
 
-    // --- 2. DIRECT CONNECTION (No Struct needed) ---
-    // When the box is clicked, we directly update the handler variable
     connect(esp_box, &QCheckBox::toggled, [this](bool checked) {
         handler.esp_enabled = checked; 
     });
@@ -73,8 +64,6 @@ void MainWindow::update_behavior_executed()
     features.aimbot = m_ui->checkBox_aimbot->isChecked();
     features.movement = m_ui->checkBox_movement->isChecked();
 
-    // REMOVED: features.esp = ... 
-    // We don't touch the struct anymore to avoid errors.
 
     m_cs2_runner->set_activated_behavior(features);
 }

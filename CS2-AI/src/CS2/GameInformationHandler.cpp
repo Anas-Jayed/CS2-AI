@@ -5,7 +5,7 @@
 #include "Utility/Utility.h"
 #include "CS2/Constants.h" 
 
-// --- Helper for FOV Calculation ---
+
 static Vec2D<float> calculate_angle_to_target(const Vec3D<float>& player_head, const Vec3D<float>& enemy_head)
 {
 	const Vec3D<float> vec_to_enemy = enemy_head - player_head;
@@ -30,7 +30,7 @@ static Vec2D<float> calculate_angle_to_target(const Vec3D<float>& player_head, c
 	return result;
 }
 
-// --- CORE FUNCTIONS (MUST BE PRESENT) ---
+
 
 bool GameInformationhandler::init(const Config& config)
 {
@@ -106,7 +106,7 @@ void GameInformationhandler::set_config(Config config)
 	m_config = std::move(config);
 }
 
-// --- TARGETING LOGIC ---
+
 
 std::optional<PlayerInformation> GameInformationhandler::get_closest_player(const GameInformation& game_info, bool only_enemy_team)
 {
@@ -141,7 +141,7 @@ std::optional<PlayerInformation> GameInformationhandler::get_closest_player(cons
 	return closest_enemy;
 }
 
-// --- MEMORY READERS ---
+
 
 std::string GameInformationhandler::read_in_current_map()
 {
