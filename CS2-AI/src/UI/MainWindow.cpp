@@ -1,188 +1,222 @@
 #include "UI/MainWindow.h"
+#include "CS2/GameInformationHandler.h" // Needed to access the global variable
+#include <QCheckBox>
+#include <QLayout>
+
+// --- IMPORTANT: GLOBAL ACCESS ---
+// We tell this file that 'handler' exists somewhere else (in main.cpp or global scope)
+// If your compiler complains about "handler", change this to match your global variable name.
+extern GameInformationhandler handler; 
+// --------------------------------
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), m_ui(new Ui::MainWindow)
 {
-	m_ui->setupUi(this);
-	m_settings_window = new SettingsWindow(this);
-	auto cs2_config = m_settings_window->get_config();
+    m_ui->setupUi(this);
+    m_settings_window = new SettingsWindow(this);
+    auto cs2_config = m_settings_window->get_config();
 
-	m_box_logger = std::make_unique<QTBoxLogger>(
-		std::initializer_list<QTextEdit*>({ m_ui->textEdit_output, m_ui->textEdit_point_output }));
-	Logging::set_logger(m_box_logger.get());
+    // --- ADD THIS BLOCK ---
+    // Initialize the Global Handler so the Overlay can use it
+    handler.init(cs2_config);
+    handler.loadOffsets();
+    // ----------------------
 
-	m_log_updater = new QTimer(this);
-	connect(m_log_updater, &QTimer::timeout, this, &MainWindow::update_logger);
-	m_log_updater->start();
+    // --- 1. DYNAMIC ESP CHECKBOX ---
+    QCheckBox* esp_box = new QCheckBox("ESP", this);
+    esp_box->setObjectName("checkBox_esp");
+    
+    // Add it next to Aimbot
+    if (m_ui->checkBox_aimbot && m_ui->checkBox_aimbot->parentWidget()->layout()) {
+        m_ui->checkBox_aimbot->parentWidget()->layout()->addWidget(esp_box);
+    }
 
-	m_cs2_runner_thread = new QThread();
-	m_cs2_runner = new CS2Runner(cs2_config);
-	m_cs2_runner->moveToThread(m_cs2_runner_thread);
+    // --- 2. DIRECT CONNECTION (No Struct needed) ---
+    // When the box is clicked, we directly update the handler variable
+    connect(esp_box, &QCheckBox::toggled, [this](bool checked) {
+        handler.esp_enabled = checked; 
+    });
+    // -----------------------------------------------
 
-	m_ui->editor_tab_layout->addWidget(new NavmeshEditorWidget(m_cs2_runner, this));
+    m_box_logger = std::make_unique<QTBoxLogger>(
+        std::initializer_list<QTextEdit*>({ m_ui->textEdit_output, m_ui->textEdit_point_output }));
+    Logging::set_logger(m_box_logger.get());
 
-	connect(m_cs2_runner_thread, &QThread::started, m_cs2_runner, &CS2Runner::run);
-	connect(m_cs2_runner, &CS2Runner::finished, m_cs2_runner_thread, &QThread::quit);
-	connect(m_cs2_runner, &CS2Runner::finished, m_cs2_runner, &CS2Runner::deleteLater);
-	connect(m_cs2_runner_thread, &QThread::finished, m_cs2_runner_thread, &QThread::deleteLater);
-	connect(m_ui->actionSettings, &QAction::triggered, this, &MainWindow::open_setting_window);
-	m_cs2_runner_thread->start();
+    m_log_updater = new QTimer(this);
+    connect(m_log_updater, &QTimer::timeout, this, &MainWindow::update_logger);
+    m_log_updater->start();
+
+    m_cs2_runner_thread = new QThread();
+    m_cs2_runner = new CS2Runner(cs2_config);
+    m_cs2_runner->moveToThread(m_cs2_runner_thread);
+
+    m_ui->editor_tab_layout->addWidget(new NavmeshEditorWidget(m_cs2_runner, this));
+
+    connect(m_cs2_runner_thread, &QThread::started, m_cs2_runner, &CS2Runner::run);
+    connect(m_cs2_runner, &CS2Runner::finished, m_cs2_runner_thread, &QThread::quit);
+    connect(m_cs2_runner, &CS2Runner::finished, m_cs2_runner, &CS2Runner::deleteLater);
+    connect(m_cs2_runner_thread, &QThread::finished, m_cs2_runner_thread, &QThread::deleteLater);
+    connect(m_ui->actionSettings, &QAction::triggered, this, &MainWindow::open_setting_window);
+    m_cs2_runner_thread->start();
 }
 
 MainWindow::~MainWindow()
 {
-	m_settings_window->save_to_file();
-	delete m_log_updater;
-	delete m_ui;
+    m_settings_window->save_to_file();
+    delete m_log_updater;
+    delete m_ui;
 }
 
 void MainWindow::update_behavior_executed()
 {
-	ActivatedFeatures features;
-	features.triggerBot = m_ui->checkBox_triggerbot->isChecked();
-	features.aimbot = m_ui->checkBox_aimbot->isChecked();
-	features.movement = m_ui->checkBox_movement->isChecked();
+    ActivatedFeatures features;
+    features.triggerBot = m_ui->checkBox_triggerbot->isChecked();
+    features.aimbot = m_ui->checkBox_aimbot->isChecked();
+    features.movement = m_ui->checkBox_movement->isChecked();
 
-	m_cs2_runner->set_activated_behavior(features);
+    // REMOVED: features.esp = ... 
+    // We don't touch the struct anymore to avoid errors.
+
+    m_cs2_runner->set_activated_behavior(features);
 }
 
 void MainWindow::update_logger()
 {
-	m_box_logger->update();
+    m_box_logger->update();
 }
 
 bool MainWindow::all_behavior_checkboxes_checked()
 {
-	return all_checked({ m_ui->checkBox_aimbot, m_ui->checkBox_triggerbot, m_ui->checkBox_movement });
+    return all_checked({ m_ui->checkBox_aimbot, m_ui->checkBox_triggerbot, m_ui->checkBox_movement });
 }
 
 bool MainWindow::all_checked(std::initializer_list<QCheckBox*> checkboxes)
 {
-	if (checkboxes.size() == 0)
-		return false;
+    if (checkboxes.size() == 0)
+        return false;
 
-	bool all_checked = true;
-	for (QCheckBox* box : checkboxes)
-		all_checked = all_checked && box->isChecked();
+    bool all_checked = true;
+    for (QCheckBox* box : checkboxes)
+        all_checked = all_checked && box->isChecked();
 
-	return all_checked;
+    return all_checked;
 }
 
 void MainWindow::set_checked(bool value, std::initializer_list<QCheckBox*> checkboxes)
 {
-	for (QCheckBox* elem : checkboxes)
-		elem->setChecked(value);
+    for (QCheckBox* elem : checkboxes)
+        elem->setChecked(value);
 }
 
 void MainWindow::set_enabled(bool value, std::initializer_list<QCheckBox*> checkboxes)
 {
-	for (QCheckBox* box : checkboxes)
-		box->setEnabled(value);
+    for (QCheckBox* box : checkboxes)
+        box->setEnabled(value);
 }
 
 void MainWindow::open_setting_window()
 {
-	m_settings_window->exec();
-	m_settings_window->save_to_file();
-	m_cs2_runner->set_config(m_settings_window->get_config());
+    m_settings_window->exec();
+    m_settings_window->save_to_file();
+    m_cs2_runner->set_config(m_settings_window->get_config());
 }
 
 void MainWindow::on_checkBox_ai_stateChanged()
 {
-	if (all_behavior_checkboxes_checked() && m_ui->checkBox_ai->isChecked())
-	{
-		set_enabled(false, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
-		return;
-	}
+    if (all_behavior_checkboxes_checked() && m_ui->checkBox_ai->isChecked())
+    {
+        set_enabled(false, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
+        return;
+    }
 
-	if (m_ui->checkBox_ai->isChecked())
-	{
-		set_checked(true, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
-		set_enabled(false, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
-	}
-	else
-	{
-		set_checked(false, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
-		set_enabled(true, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
-	}
+    if (m_ui->checkBox_ai->isChecked())
+    {
+        set_checked(true, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
+        set_enabled(false, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
+    }
+    else
+    {
+        set_checked(false, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
+        set_enabled(true, { m_ui->checkBox_aimbot, m_ui->checkBox_movement, m_ui->checkBox_triggerbot });
+    }
 }
 
 void MainWindow::on_checkBox_aimbot_stateChanged()
 {
-	if (all_behavior_checkboxes_checked())
-		m_ui->checkBox_ai->setChecked(true);
+    if (all_behavior_checkboxes_checked())
+        m_ui->checkBox_ai->setChecked(true);
 
-	update_behavior_executed();
+    update_behavior_executed();
 }
 
 void MainWindow::on_checkBox_movement_stateChanged()
 {
-	if (all_behavior_checkboxes_checked())
-		m_ui->checkBox_ai->setChecked(true);
+    if (all_behavior_checkboxes_checked())
+        m_ui->checkBox_ai->setChecked(true);
 
-	update_behavior_executed();
+    update_behavior_executed();
 }
 
 void MainWindow::on_checkBox_triggerbot_stateChanged()
 {
-	if (all_behavior_checkboxes_checked())
-		m_ui->checkBox_ai->setChecked(true);
+    if (all_behavior_checkboxes_checked())
+        m_ui->checkBox_ai->setChecked(true);
 
-	update_behavior_executed();
+    update_behavior_executed();
 }
 
 void MainWindow::on_button_reload_files_clicked()
 {
-	m_cs2_runner->set_config(m_settings_window->get_config());
-	m_cs2_runner->load_offsets();
-	m_cs2_runner->load_navmesh();
+    m_cs2_runner->set_config(m_settings_window->get_config());
+    m_cs2_runner->load_offsets();
+    m_cs2_runner->load_navmesh();
 }
 
 void MainWindow::on_button_reattach_clicked()
 {
-	m_cs2_runner->attach_to_process();
+    m_cs2_runner->attach_to_process();
 }
 
 void MainWindow::on_lineEdit_keycode_textChanged(const QString& str)
 {
-	if (str.size() == 0)
-		return;
+    if (str.size() == 0)
+        return;
 
-	auto get_key_code_from_char = [](char c)
-	{
-		HKL currentKBL = GetKeyboardLayout(0);
-		return VkKeyScanExA(c, currentKBL);
-	};
+    auto get_key_code_from_char = [](char c)
+    {
+        HKL currentKBL = GetKeyboardLayout(0);
+        return VkKeyScanExA(c, currentKBL);
+    };
 
-	std::string buf = str.toStdString();
-	int key_code = get_key_code_from_char(buf.at(0));
-	m_cs2_runner->set_add_point_key(key_code);
+    std::string buf = str.toStdString();
+    int key_code = get_key_code_from_char(buf.at(0));
+    m_cs2_runner->set_add_point_key(key_code);
 }
 
 void MainWindow::on_tabWidget_currentChanged(int index)
 {
-	ModeRunning mode = ModeRunning::NONE;
-	if ((SelectedTab)index == SelectedTab::AI)
-		mode = ModeRunning::AI;
-	else if ((SelectedTab)index == SelectedTab::POINTS)
-		mode = ModeRunning::POINT_CREATOR;
+    ModeRunning mode = ModeRunning::NONE;
+    if ((SelectedTab)index == SelectedTab::AI)
+        mode = ModeRunning::AI;
+    else if ((SelectedTab)index == SelectedTab::POINTS)
+        mode = ModeRunning::POINT_CREATOR;
 
-	m_cs2_runner->set_mode(mode);
+    m_cs2_runner->set_mode(mode);
 }
 
 void MainWindow::on_button_save_points_clicked()
 {
-	if (m_cs2_runner->save_navmesh_points())
-		Logging::log_success("File successfully saved");
-	else
-		Logging::log_error("Error saving file");
+    if (m_cs2_runner->save_navmesh_points())
+        Logging::log_success("File successfully saved");
+    else
+        Logging::log_error("Error saving file");
 }
 
 void MainWindow::on_button_add_point_clicked()
 {
-	m_cs2_runner->add_point();
+    m_cs2_runner->add_point();
 }
 
 void MainWindow::on_button_reattach_2_clicked()
 {
-	m_cs2_runner->attach_to_process();
+    m_cs2_runner->attach_to_process();
 }

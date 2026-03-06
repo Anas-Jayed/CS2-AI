@@ -38,6 +38,7 @@ set(QT_UI_FILES
 )
 
 set (CS2_HEADER
+	"include/CS2/Overlay.h"
 	"include/CS2/Aimbot.h"
 	"include/CS2/Button.h"
 	"include/CS2/Config.h"
@@ -58,6 +59,7 @@ set (HEADERS
 	)
 
 set(CS2_SOURCE
+	"src/CS2/Overlay.cpp"
 	"src/CS2/Aimbot.cpp"
 	"src/CS2/Button.cpp"
 	"src/CS2/CS2AI.cpp"
