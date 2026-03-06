@@ -4,8 +4,6 @@
 #include <QtGui/QPainter>
 #include <QtCore/QTimer>
 
-// This include gives us the "ViewMatrix" definition. 
-// Do NOT define the struct again in this file.
 #include "CS2/GameInformationHandler.h" 
 
 class Overlay : public QWidget {
